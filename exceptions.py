@@ -1,0 +1,2 @@
+class NotEnoughColumns(Exception):
+    pass
