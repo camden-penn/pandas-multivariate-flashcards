@@ -4,12 +4,7 @@ import tkinter as tk
 import exceptions as oops
 import random
 
-flashcard_data = pd.read_csv('防振りの単語.csv')
-data_columns = flashcard_data.dtypes.index
-if len(data_columns) < 2:
-    raise oops.NotEnoughColumns
-
-DEBUG = True
+DEBUG = False
 FLASHCARD_FONT = ('Helvetica', 40)
 MINOR_FONT = ('Helvetica', 20)
 FILL_VOLUME = (tk.N,tk.S,tk.E,tk.W)
@@ -76,8 +71,7 @@ def advance_flashcard(card_set_data, card_order, curr_card_info, card_label, l_b
             l_button_place_handle(l_button)
         
 
-def begin_flashcards():
-    
+def begin_flashcards(flashcard_data):
     doing_flashcards = tk.Frame(window, padx=10, pady=10)
     for col in range(0, 2):
         doing_flashcards.grid_columnconfigure(col, weight=1)
@@ -96,7 +90,10 @@ def begin_flashcards():
     flashcard_r_button['command']= lambda:advance_flashcard(flashcard_set, flashcard_order, current_card, flashcard, flashcard_l_button, flashcard_r_button, lambda card:card.grid(row=0, column=0, sticky=FILL_VOLUME))
     flashcard_r_button.invoke()
 
-def init_flashcard_set():
+def init_flashcard_set(flashcard_data):
+    data_columns = flashcard_data.dtypes.index
+    if len(data_columns) < 2:
+        raise oops.NotEnoughColumns
     flashcard['text'] = "Choose the flashcards'\n front and back."
     flashcard_settings = tk.Frame(window, padx=10, pady=10)
     flashcard_settings.grid(row=1, column=0, sticky=FILL_VOLUME)
@@ -127,9 +124,34 @@ def init_flashcard_set():
     done_button = tk.Button(flashcard_settings, text="Done", font=MINOR_FONT)
     done_button.grid(row=1, column=2, columnspan=2, sticky=FILL_VOLUME)
 
-    done_button['command'] = lambda:window_transition([flashcard_settings], begin_flashcards)
+    done_button['command'] = lambda:window_transition([flashcard_settings], lambda:begin_flashcards(flashcard_data))
 
-init_flashcard_set()
+def consume_selected_input_file(chosen_file, next_window_handle):
+    flashcard_data = pd.read_csv(chosen_file)
+    next_window_handle(flashcard_data)
+
+def select_input_file():
+    possible_source_files = [f for f in os.listdir('.') if os.path.isfile(f) and f.endswith('.csv')]
+    if len(possible_source_files) == 0:
+        raise oops.NoFilesFound
+    flashcard['text'] = "Choose the source CSV."
+    
+    file_picker = tk.Frame(window, padx=10, pady=50)
+    file_picker.grid(row=1, column=0, sticky=FILL_VOLUME)
+    file_to_choose=tk.StringVar(file_picker)
+    file_dropdown = tk.OptionMenu(file_picker, file_to_choose, *possible_source_files)
+    file_dropdown.config(font=MINOR_FONT)
+    file_picker.nametowidget(file_dropdown.menuname).config(font=MINOR_FONT)
+    file_to_choose.set(possible_source_files[0])
+    file_dropdown.grid(row=0, column=0)
+    
+    done_button = tk.Button(file_picker, text="Next", font=MINOR_FONT)
+    done_button.grid(row=2, column=0, sticky=FILL_VOLUME)
+
+    done_button['command'] = lambda:consume_selected_input_file(file_to_choose.get(),lambda data:window_transition([file_picker], lambda:init_flashcard_set(data)))
+    
+
+select_input_file()
 
 window.mainloop()
 
